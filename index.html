@@ -117,6 +117,143 @@
         body.arrange-active .move-controls { display:flex; }
 
 
+
+        /* CRAVO SECTION SLIDER MENU */
+        #menu-grid {
+            display: block;
+        }
+
+        .menu-section {
+            margin-bottom: 28px;
+            position: relative;
+        }
+
+        .section-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .section-title {
+            font-family: 'Bebas Neue';
+            font-size: 1.9rem;
+            letter-spacing: .5px;
+            margin: 0;
+            color: var(--dark);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .section-count {
+            background: #fff7ed;
+            color: #c2410c;
+            border: 1px solid #fed7aa;
+            padding: 7px 12px;
+            border-radius: 999px;
+            font-weight: 900;
+            font-size: .78rem;
+            white-space: nowrap;
+        }
+
+        .menu-scroll {
+            display: flex;
+            gap: 16px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            scroll-snap-type: x mandatory;
+            scroll-behavior: smooth;
+            padding: 4px 4px 14px 4px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .menu-scroll::-webkit-scrollbar {
+            height: 7px;
+        }
+
+        .menu-scroll::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, .06);
+            border-radius: 999px;
+        }
+
+        .menu-scroll::-webkit-scrollbar-thumb {
+            background: var(--orange);
+            border-radius: 999px;
+        }
+
+        .menu-scroll .best-card {
+            min-width: 225px;
+            max-width: 225px;
+            flex: 0 0 225px;
+            scroll-snap-align: start;
+        }
+
+        .section-tabs {
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+            padding: 2px 0 14px 0;
+            margin-bottom: 14px;
+            position: sticky;
+            top: 0;
+            z-index: 30;
+            background: rgba(245, 241, 232, .92);
+            backdrop-filter: blur(10px);
+        }
+
+        .section-tab {
+            border: 0;
+            background: white;
+            color: var(--dark);
+            padding: 11px 15px;
+            border-radius: 999px;
+            font-weight: 900;
+            cursor: pointer;
+            white-space: nowrap;
+            box-shadow: 0 4px 12px rgba(0,0,0,.06);
+            border: 1px solid #fed7aa;
+        }
+
+        .section-tab.active {
+            background: var(--dark);
+            color: white;
+        }
+
+        .product-category-pill {
+            position: absolute;
+            left: 12px;
+            top: 10px;
+            background: rgba(2, 6, 23, .82);
+            color: white;
+            border-radius: 999px;
+            padding: 5px 8px;
+            font-size: .65rem;
+            font-weight: 900;
+            z-index: 2;
+        }
+
+        @media (max-width: 700px) {
+            .section-title { font-size: 1.45rem; }
+            .menu-section { margin-bottom: 20px; }
+            .menu-scroll { gap: 12px; }
+            .menu-scroll .best-card {
+                min-width: 155px;
+                max-width: 155px;
+                flex-basis: 155px;
+            }
+            .section-tabs {
+                margin-bottom: 10px;
+                padding-bottom: 10px;
+            }
+            .section-tab {
+                padding: 9px 12px;
+                font-size: .78rem;
+            }
+        }
+
+
         /* RESPONSIVE LAYOUT: PC / TABLET / PHONE */
         .mobile-cart-bar { display: none; }
         .table-wrap { width: 100%; overflow-x: auto; }
@@ -292,6 +429,17 @@
                 <input type="text" id="new-name" class="edit-input" placeholder="Name">
                 <input type="number" id="new-price" class="edit-input" placeholder="Price">
                 <input type="number" id="new-cost" class="edit-input" placeholder="Cost">
+                <select id="new-category" class="edit-input">
+        <option value="Regular Menu">Regular Menu</option>
+        <option value="Combo">Combo</option>
+        <option value="Bucket">Bucket</option>
+        <option value="Sides">Sides</option>
+        <option value="__new__">➕ Add New Category</option>
+                    <option value="Regular Menu">Regular Menu</option>
+                    <option value="Combo">Combo</option>
+                    <option value="Bucket">Bucket</option>
+                    <option value="Sides">Sides</option>
+                </select>
                 <input type="file" id="new-image" accept="image/*" class="edit-input">
                 <button onclick="addNewProduct()" style="padding:10px 20px; background:var(--orange); color:white; border:none; border-radius:10px; font-weight:800;">ADD</button>
             </div>
@@ -338,7 +486,27 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
+document.getElementById("new-category").addEventListener("change", function () {
+    if (this.value === "__new__") {
+        const newCat = prompt("Enter new category name:");
+
+        if (newCat && newCat.trim()) {
+            const clean = newCat.trim();
+
+            const opt = document.createElement("option");
+            opt.value = clean;
+            opt.textContent = clean;
+
+            this.insertBefore(opt, this.lastElementChild);
+            this.value = clean;
+        } else {
+            this.value = "Regular Menu";
+        }
+    }
+});
+
+</script>
 
     <script>
         // SUPABASE CONNECTION
@@ -718,9 +886,45 @@
         }
         setInterval(updateClock, 1000); updateClock();
 
-        function renderMenu() {
-            const list = sortedProducts();
-            document.getElementById('menu-grid').innerHTML = list.map((p, index) => `
+
+        function getCategoryIcon(category) {
+            const c = String(category || '').toLowerCase();
+            if (c.includes('combo')) return '🔥';
+            if (c.includes('regular') || c.includes('core') || c.includes('main')) return '🍗';
+            if (c.includes('bucket')) return '🪣';
+            if (c.includes('side') || c.includes('fries') || c.includes('add')) return '🍟';
+            if (c.includes('drink')) return '🥤';
+            return '⭐';
+        }
+
+        function normaliseCategoryName(category) {
+            const c = String(category || '').trim();
+            if (!c) return 'Regular Menu';
+            const low = c.toLowerCase();
+            if (low.includes('combo')) return 'Combo';
+            if (low.includes('bucket')) return 'Bucket';
+            if (low.includes('side') || low.includes('fries') || low.includes('add')) return 'Sides';
+            if (low.includes('regular') || low.includes('core') || low.includes('main') || low.includes('food')) return 'Regular Menu';
+            return c;
+        }
+
+        function sectionOrder(category) {
+            const c = String(category || '').toLowerCase();
+            if (c.includes('regular')) return 1;
+            if (c.includes('combo')) return 2;
+            if (c.includes('bucket')) return 3;
+            if (c.includes('side')) return 4;
+            return 99;
+        }
+
+        function scrollToSection(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
+        function renderProductCard(p, index) {
+            return `
                 <div class="best-card ${arrangeMode ? 'arrange-mode' : ''}" 
                     draggable="${arrangeMode ? 'true' : 'false'}"
                     data-id="${safeText(p.id)}"
@@ -730,8 +934,9 @@
                     ondragleave="onProductDragLeave(event)"
                     ondrop="onProductDrop(event, '${safeText(p.id)}')"
                     ondragend="onProductDragEnd(event)">
-                    <span style="position:absolute; top:8px; right:12px; font-size:0.7rem; font-weight:800; color:#ef4444;">${Number(p.stock || 0)} left</span>
-                    ${arrangeMode ? `<span style="position:absolute; top:8px; left:12px; font-size:.72rem; font-weight:900; background:#fff7ed; color:#c2410c; padding:5px 8px; border-radius:999px;">#${index + 1}</span>` : ''}
+                    <span style="position:absolute; top:8px; right:12px; font-size:0.7rem; font-weight:800; color:#ef4444; z-index:2;">${Number(p.stock || 0)} left</span>
+                    <span class="product-category-pill">${normaliseCategoryName(p.category)}</span>
+                    ${arrangeMode ? `<span style="position:absolute; top:38px; left:12px; font-size:.72rem; font-weight:900; background:#fff7ed; color:#c2410c; padding:5px 8px; border-radius:999px; z-index:3;">#${index + 1}</span>` : ''}
                     ${p.image_url ? `<img src="${p.image_url}" class="product-photo" alt="${safeText(p.name)}">` : `<div class="product-photo-empty">🍗</div>`}
                     <strong>${p.name}</strong>
                     <div class="best-price-tag">RM ${Number(p.price).toFixed(2)}</div>
@@ -739,8 +944,54 @@
                         <button onclick="moveProductPosition(event, '${safeText(p.id)}', -1)">⬆️ UP</button>
                         <button onclick="moveProductPosition(event, '${safeText(p.id)}', 1)">⬇️ DOWN</button>
                     </div>
-                </div>`).join('');
+                </div>`;
         }
+
+        function renderMenu() {
+            const list = sortedProducts();
+            const grouped = {};
+
+            list.forEach(p => {
+                const category = normaliseCategoryName(p.category);
+                if (!grouped[category]) grouped[category] = [];
+                grouped[category].push(p);
+            });
+
+            const categories = Object.keys(grouped).sort((a, b) => {
+                const oa = sectionOrder(a);
+                const ob = sectionOrder(b);
+                if (oa !== ob) return oa - ob;
+                return a.localeCompare(b);
+            });
+
+            const tabs = `
+                <div class="section-tabs">
+                    ${categories.map((cat, i) => `
+                        <button class="section-tab ${i === 0 ? 'active' : ''}" onclick="scrollToSection('section-${cat.replace(/[^a-z0-9]/gi, '-').toLowerCase()}')">
+                            ${getCategoryIcon(cat)} ${cat}
+                        </button>
+                    `).join('')}
+                </div>
+            `;
+
+            const sections = categories.map(cat => {
+                const sectionId = 'section-' + cat.replace(/[^a-z0-9]/gi, '-').toLowerCase();
+                return `
+                    <section class="menu-section" id="${sectionId}">
+                        <div class="section-head">
+                            <h2 class="section-title">${getCategoryIcon(cat)} ${cat}</h2>
+                            <span class="section-count">${grouped[cat].length} menu</span>
+                        </div>
+                        <div class="menu-scroll">
+                            ${grouped[cat].map((p, idx) => renderProductCard(p, idx)).join('')}
+                        </div>
+                    </section>
+                `;
+            }).join('');
+
+            document.getElementById('menu-grid').innerHTML = tabs + sections;
+        }
+
 
         function handleMenuCardClick(event, id) {
             if (arrangeMode) {
@@ -1056,7 +1307,7 @@
             const imgFile = document.getElementById('new-image').files[0];
             if(!n || isNaN(pr)) return;
             const imageUrl = imgFile ? await fileToBase64(imgFile) : '';
-            const newProduct = { name: n.toUpperCase(), price: pr, cost: co, stock: 0, is_fries: false, image_url: imageUrl, category: 'Food', priority: products.length + 1 };
+            const newProduct = { name: n.toUpperCase(), price: pr, cost: co, stock: 0, is_fries: false, image_url: imageUrl, category: (document.getElementById('new-category')?.value || 'Regular Menu'), priority: products.length + 1 };
             const savedProduct = await saveProduct(newProduct);
             if (!savedProduct) return;
 
@@ -1071,6 +1322,7 @@
             document.getElementById('new-price').value = '';
             document.getElementById('new-cost').value = '';
             document.getElementById('new-image').value = '';
+            if (document.getElementById('new-category')) document.getElementById('new-category').value = 'Regular Menu';
             renderStock(); renderMenu();
         }
 
@@ -1124,6 +1376,26 @@
         loadData();
         subscribeSync();
         setInterval(() => loadData(false), 12000);
-    </script>
+    
+document.getElementById("new-category").addEventListener("change", function () {
+    if (this.value === "__new__") {
+        const newCat = prompt("Enter new category name:");
+
+        if (newCat && newCat.trim()) {
+            const clean = newCat.trim();
+
+            const opt = document.createElement("option");
+            opt.value = clean;
+            opt.textContent = clean;
+
+            this.insertBefore(opt, this.lastElementChild);
+            this.value = clean;
+        } else {
+            this.value = "Regular Menu";
+        }
+    }
+});
+
+</script>
 </body>
 </html>
