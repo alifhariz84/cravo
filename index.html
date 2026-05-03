@@ -421,15 +421,15 @@
             if (showSync) showStatus('SYNCING...');
             try {
                 const brandId = await getCrunchBrandId();
-                let { data: p, error: pe } = await db.from('products').select('*').eq('brand', BRAND_NAME).order('priority', { ascending: true }).order('name', { ascending: true });
+                let { data: p, error: pe } = await db.from('products').select('*').eq('brand', BRAND_NAME).eq('is_active', true).order('priority', { ascending: true }).order('name', { ascending: true });
                 if (pe) {
-                    const fallback = await db.from('products').select('*').eq('brand_id', brandId).order('priority', { ascending: true }).order('name', { ascending: true });
+                    const fallback = await db.from('products').select('*').eq('brand_id', brandId).eq('is_active', true).order('priority', { ascending: true }).order('name', { ascending: true });
                     p = fallback.data;
                     pe = fallback.error;
                 }
                 const { data: s, error: se } = await db.from('sales').select('*').eq('brand', BRAND_NAME).order('created_at', { ascending: true });
                 if (pe || se) throw (pe || se);
-                products = (p || []).map(x => ({ ...x, stock: Number(x.stock ?? x.stock_qty ?? 0), price: Number(x.price ?? 0), cost: Number(x.cost ?? 0), is_fries: Boolean(x.is_fries), priority: Number(x.priority ?? 9999) }));
+                products = (p || []).filter(x => x.is_active !== false).map(x => ({ ...x, stock: Number(x.stock ?? x.stock_qty ?? 0), price: Number(x.price ?? 0), cost: Number(x.cost ?? 0), is_fries: Boolean(x.is_fries), priority: Number(x.priority ?? 9999) }));
                 sales = (s || []).map(x => ({ ...x, total: Number(x.total ?? x.total_amount ?? 0), method: x.method || x.payment_method || '', time: x.time || new Date(x.created_at || Date.now()).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}), details: x.details || x.receipt_no || '' }));
                 if (products.length === 0) {
                     const seed = defaultProducts.map(x => ({ ...x, brand: BRAND_NAME, brand_id: brandId, is_active: true }));
@@ -600,19 +600,101 @@
 
         async function saveProduct(product) {
             const brandId = await getCrunchBrandId();
-            const clean = { name: String(product.name || '').toUpperCase(), brand: BRAND_NAME, brand_id: brandId, category: product.category || 'Food', price: Number(product.price || 0), cost: Number(product.cost || 0), stock: Number(product.stock || 0), is_fries: Boolean(product.is_fries), image_url: product.image_url || '', priority: Number(product.priority ?? 9999), is_active: true };
-            let result;
-            if (product.id && !String(product.id).startsWith('local-')) result = await db.from('products').update(clean).eq('id', product.id).select().single();
-            else result = await db.from('products').insert(clean).select().single();
-            if (result.error) { console.error(result.error); showStatus('SAVE ERROR', true); alert('Cannot save to Supabase. Check table/policy.'); }
-            else { Object.assign(product, result.data); showStatus('SAVED TO DASHBOARD'); }
+
+            const clean = {
+                name: String(product.name || '').trim().toUpperCase(),
+                brand: BRAND_NAME,
+                brand_id: brandId,
+                category: product.category || 'Food',
+                price: Number(product.price || 0),
+                cost: Number(product.cost || 0),
+                stock: Number(product.stock || 0),
+                is_fries: Boolean(product.is_fries),
+                image_url: product.image_url || '',
+                priority: Number(product.priority ?? 9999),
+                is_active: true
+            };
+
+            async function findExistingProduct() {
+                const existing = await db
+                    .from('products')
+                    .select('*')
+                    .eq('name', clean.name)
+                    .limit(20);
+
+                if (existing.error) throw existing.error;
+
+                const rows = existing.data || [];
+                return rows.find(r =>
+                    String(r.brand || '').toLowerCase() === String(BRAND_NAME).toLowerCase()
+                    || String(r.brand_id || '') === String(brandId || '')
+                ) || rows[0] || null;
+            }
+
+            async function updateExisting(existingId) {
+                const result = await db
+                    .from('products')
+                    .update(clean)
+                    .eq('id', existingId)
+                    .select()
+                    .single();
+
+                if (result.error) throw result.error;
+                return result.data;
+            }
+
+            try {
+                let saved = null;
+
+                if (product.id && !String(product.id).startsWith('local-')) {
+                    saved = await updateExisting(product.id);
+                } else {
+                    const existing = await findExistingProduct();
+
+                    if (existing && existing.id) {
+                        saved = await updateExisting(existing.id);
+                    } else {
+                        const inserted = await db
+                            .from('products')
+                            .insert(clean)
+                            .select()
+                            .single();
+
+                        if (inserted.error) {
+                            // If Supabase still says duplicate, find the existing row and update it.
+                            if (inserted.error.code === '23505' || String(inserted.error.message || '').includes('duplicate key')) {
+                                const duplicateRow = await findExistingProduct();
+                                if (duplicateRow && duplicateRow.id) {
+                                    saved = await updateExisting(duplicateRow.id);
+                                } else {
+                                    throw inserted.error;
+                                }
+                            } else {
+                                throw inserted.error;
+                            }
+                        } else {
+                            saved = inserted.data;
+                        }
+                    }
+                }
+
+                Object.assign(product, saved);
+                showStatus('SAVED TO DASHBOARD');
+                return saved;
+
+            } catch (err) {
+                console.error('SAVE PRODUCT FAILED:', err);
+                showStatus('SAVE ERROR', true);
+                alert('Cannot save to Supabase: ' + (err.message || JSON.stringify(err)));
+                return null;
+            }
         }
 
         async function saveAllProducts() {
             const brandId = await getCrunchBrandId();
             for (const p of products) {
                 if (!p.id || String(p.id).startsWith('local-')) continue;
-                const { error } = await db.from('products').update({ brand: BRAND_NAME, brand_id: brandId, stock: Number(p.stock || 0), price: Number(p.price || 0), cost: Number(p.cost || 0), image_url: p.image_url || '', is_fries: Boolean(p.is_fries), priority: Number(p.priority ?? 9999) }).eq('id', p.id);
+                const { error } = await db.from('products').update({ brand: BRAND_NAME, brand_id: brandId, stock: Number(p.stock || 0), price: Number(p.price || 0), cost: Number(p.cost || 0), image_url: p.image_url || '', is_fries: Boolean(p.is_fries), priority: Number(p.priority ?? 9999), is_active: p.is_active !== false }).eq('id', p.id);
                 if (error) { console.error(error); showStatus('STOCK SAVE ERROR', true); alert('Cannot update stock in Supabase. Check table/policy.'); return; }
             }
             showStatus('STOCK SYNCED TO DASHBOARD');
@@ -956,7 +1038,17 @@
         async function editItem(id, f, v) { const p = productById(id); if (!p) return; p[f] = (f === 'name') ? v.toUpperCase() : parseFloat(v); await saveProduct(p); renderMenu(); }
         async function addStock(id) { const q = prompt("Qty:"); if(q) { const p = productById(id); if (!p) return; p.stock = Number(p.stock || 0) + parseInt(q); await saveProduct(p); renderStock(); renderMenu(); } }
         async function delSale(id) { sales = sales.filter(x => String(x.id) !== String(id)); await db.from('sales').delete().eq('id', id); renderReports(); }
-        async function delItem(id) { products = products.filter(x => String(x.id) !== String(id)); await db.from('products').delete().eq('id', id); renderStock(); renderMenu(); }
+        async function delItem(id) {
+            if (!confirm('Hide/delete this menu from POS and Dashboard?')) return;
+            const p = productById(id);
+            products = products.filter(x => String(x.id) !== String(id));
+            if (p && p.id && !String(p.id).startsWith('local-')) {
+                const { error } = await db.from('products').update({ is_active: false }).eq('id', p.id);
+                if (error) { console.error(error); alert('Delete failed: ' + error.message); await loadData(false); return; }
+            }
+            renderStock(); renderMenu();
+            showStatus('MENU HIDDEN FROM DASHBOARD');
+        }
         async function addNewProduct() {
             const n = document.getElementById('new-name').value;
             const pr = parseFloat(document.getElementById('new-price').value);
@@ -965,8 +1057,16 @@
             if(!n || isNaN(pr)) return;
             const imageUrl = imgFile ? await fileToBase64(imgFile) : '';
             const newProduct = { name: n.toUpperCase(), price: pr, cost: co, stock: 0, is_fries: false, image_url: imageUrl, category: 'Food', priority: products.length + 1 };
-            await saveProduct(newProduct);
-            products.push(newProduct);
+            const savedProduct = await saveProduct(newProduct);
+            if (!savedProduct) return;
+
+            const existingIndex = products.findIndex(x =>
+                String(x.id) === String(savedProduct.id) ||
+                (String(x.brand || BRAND_NAME) === BRAND_NAME && String(x.name || '').toUpperCase() === String(savedProduct.name || '').toUpperCase())
+            );
+
+            if (existingIndex >= 0) products[existingIndex] = { ...products[existingIndex], ...savedProduct };
+            else products.push(savedProduct);
             document.getElementById('new-name').value = '';
             document.getElementById('new-price').value = '';
             document.getElementById('new-cost').value = '';
