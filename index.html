@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CRAVO FRIED CHICKEN POS</title>
+
+    <!-- PWA / Install App Setup -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" sizes="192x192" href="logocravo.png">
+    <link rel="apple-touch-icon" href="logocravo.png">
+    <meta name="theme-color" content="#12181b">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Crunch POS">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root { --orange: #ff7f32; --teal: #10b981; --dark: #12181b; --bg-overlay: rgba(245, 241, 232, 0.97); }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        
+        body { 
+            font-family: 'Outfit', sans-serif; 
+            background: url('crunchbackground.jpg') no-repeat center center fixed; 
+            background-size: cover; 
+            margin: 0; display: flex; height: 100vh; overflow: hidden; 
+        }
+
+        .sidebar { flex: 0 0 360px; background: white; border-right: 1px solid #ddd; display: flex; flex-direction: column; z-index: 10; box-shadow: 5px 0 15px rgba(0,0,0,0.1); }
+        .sidebar-header { padding: 20px; text-align: center; background: var(--dark); color: white; font-family: 'Bebas Neue'; font-size: 1.8rem; }
+        .order-list { flex-grow: 1; overflow-y: auto; padding: 15px; }
+        .order-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #f8fafc; border-radius: 12px; margin-bottom: 8px; border-left: 5px solid var(--orange); }
+        .remove-btn { color: white; border: none; background: #ef4444; border-radius: 8px; cursor: pointer; padding: 8px 12px; font-weight: 800; font-size: 0.7rem; }
+        .sidebar-footer { padding: 20px; border-top: 2px solid #eee; background: #fff; }
+        .total-row { display: flex; justify-content: space-between; font-size: 2rem; font-weight: 900; margin-bottom: 15px; color: var(--dark); }
+        .btn-side { width: 100%; padding: 18px; border-radius: 14px; border: none; font-weight: 800; cursor: pointer; color: white; margin-top: 10px; text-transform: uppercase; }
+
+        .main-content { flex: 1; display: flex; flex-direction: column; background: var(--bg-overlay); position: relative; }
+        .main-content::before {
+            content: ""; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            width: 60vh; height: 60vh; background: url('logocravo.png') no-repeat center center;
+            background-size: contain; opacity: 0.08; z-index: 0; pointer-events: none;
+        }
+
+        .header-brand { padding: 20px 40px; display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.6); backdrop-filter: blur(10px); z-index: 5; }
+        .logo-img { width: 60px; height: 60px; border-radius: 15px; }
+
+        .view { display: none; flex: 1; padding: 20px 40px 100px 40px; overflow-y: auto; position: relative; z-index: 1; }
+        .active-view { display: block; }
+
+        .best-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+        .best-card { background: white; border-radius: 20px; padding: 25px; text-align: center; box-shadow: 0 10px 20px rgba(0,0,0,0.06); cursor: pointer; position: relative; border: 2px solid transparent; }
+        .product-photo { width: 100%; height: 150px; object-fit: cover; border-radius: 16px; margin-bottom: 14px; background: #f1f5f9; border: 2px solid #f1f5f9; }
+        .product-photo-empty { width: 100%; height: 150px; border-radius: 16px; margin-bottom: 14px; background: linear-gradient(135deg, #fff7ed, #f1f5f9); display:flex; align-items:center; justify-content:center; font-size: 3rem; }
+        .best-card strong { display: block; font-family: 'Bebas Neue'; font-size: 1.8rem; margin-bottom: 8px; }
+        .best-price-tag { background: var(--dark); color: white; padding: 8px; font-family: 'Bebas Neue'; font-size: 1.8rem; border-radius: 10px; }
+
+        .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin-bottom: 25px; }
+        .stat-card { background: white; padding: 20px; border-radius: 20px; border-left: 8px solid var(--teal); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
+        .stat-card h3 { margin: 0; font-size: 0.8rem; color: #64748b; text-transform: uppercase; }
+        .stat-card div { font-size: 2rem; font-weight: 900; }
+
+        table { width: 100%; border-collapse: collapse; background: white; border-radius: 15px; overflow: hidden; margin-top: 10px; }
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: var(--dark); color: white; font-size: 0.75rem; text-transform: uppercase; }
+        .edit-input { padding: 8px; border: 1px solid #ddd; border-radius: 6px; width: 100%; font-family: 'Outfit'; }
+        .img-upload-label { display:inline-block; padding:8px 10px; border-radius:10px; background:var(--dark); color:white; font-size:.75rem; font-weight:800; cursor:pointer; white-space:nowrap; }
+        .thumb-preview { width:64px; height:48px; object-fit:cover; border-radius:10px; border:1px solid #ddd; background:#f8fafc; }
+
+        .bottom-nav { position: absolute; bottom: 0; left: 0; width: 100%; display: flex; gap: 15px; padding: 15px 40px; background: white; border-top: 1px solid #eee; z-index: 20; }
+        .nav-btn { flex: 1; background: #f1f5f9; border: none; padding: 15px; border-radius: 15px; font-weight: 800; cursor: pointer; color: #64748b; }
+        .nav-btn.active { background: var(--dark); color: white; }
+
+        .modal-bg { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); display:none; justify-content:center; align-items:center; z-index:3000; backdrop-filter: blur(5px); }
+        .modal { background: white; width: 90%; max-width: 400px; border-radius: 25px; padding: 30px; }
+        .opt-btn { width: 100%; padding: 18px; margin-bottom: 10px; border-radius: 12px; border: 2px solid #eee; background: white; font-weight: 800; cursor: pointer; font-size: 1.1rem; }
+        .opt-btn.active { background: var(--orange); color: white; border-color: var(--orange); }
+
+
+        .install-btn { background: var(--dark); color: white; border: 0; border-radius: 14px; padding: 10px 14px; font-weight: 900; cursor: pointer; box-shadow: 0 4px 12px rgba(0,0,0,.12); display:none; }
+        .install-btn.show { display:inline-flex; align-items:center; gap:6px; }
+        .app-badge { font-size:.72rem; background:#ecfeff; color:#0f766e; border:1px solid #99f6e4; padding:5px 8px; border-radius:999px; font-weight:900; }
+
+
+
+        /* PAPERLESS PACKING SCREEN */
+        .packing-toolbar { display:flex; gap:10px; flex-wrap:wrap; align-items:center; justify-content:space-between; margin-bottom:16px; }
+        .pill-filter { border:0; border-radius:999px; padding:10px 14px; font-weight:900; cursor:pointer; background:#fff; color:#64748b; box-shadow:0 2px 8px rgba(0,0,0,.06); }
+        .pill-filter.active { background:var(--dark); color:#fff; }
+        .packing-grid { display:grid; grid-template-columns:repeat(2,minmax(280px,1fr)); gap:16px; }
+        .pack-card { background:#fff; border-radius:22px; padding:20px; box-shadow:0 8px 24px rgba(0,0,0,.07); border-left:6px solid var(--orange); }
+        .pack-head { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:12px; }
+        .pack-no { font-family:'Bebas Neue'; font-size:2rem; line-height:1; color:#020617; }
+        .pack-meta { font-size:.85rem; font-weight:900; color:#334155; }
+        .pack-status { border-radius:999px; padding:7px 10px; font-size:.72rem; font-weight:900; background:#fff7ed; color:#c2410c; white-space:nowrap; }
+        .pack-status.packed { background:#dcfce7; color:#15803d; }
+        .pack-items { background:#f8fafc; border-radius:16px; padding:10px 12px; margin-bottom:14px; }
+        .pack-row { display:flex; justify-content:space-between; gap:10px; padding:9px 0; border-bottom:1px dashed #cbd5e1; font-weight:900; }
+        .pack-row:last-child { border-bottom:0; }
+        .pack-actions { display:flex; gap:8px; flex-wrap:wrap; }
+        .pack-btn { border:0; border-radius:12px; padding:12px 14px; font-weight:900; color:#fff; cursor:pointer; }
+        .pack-btn.green { background:var(--teal); }
+        .pack-btn.red { background:#ef4444; }
+        .pack-btn.dark { background:var(--dark); }
+        .empty-state { background:#fff; border-radius:22px; padding:30px; text-align:center; color:#64748b; font-weight:800; }
+
+        #receipt-print { display: none; }
+
+        .menu-tools { display:flex; gap:10px; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; }
+        .arrange-btn { border:0; border-radius:14px; padding:12px 16px; font-weight:900; cursor:pointer; background:var(--dark); color:white; box-shadow:0 4px 12px rgba(0,0,0,.10); }
+        .arrange-btn.active { background:var(--orange); }
+        .arrange-hint { font-size:.85rem; font-weight:900; color:#64748b; background:white; border-radius:999px; padding:9px 12px; }
+        .best-card.arrange-mode { cursor:grab; border-color:var(--orange); }
+        .best-card.dragging { opacity:.45; transform:scale(.98); }
+        .best-card.drag-over { border-color:var(--teal); box-shadow:0 0 0 4px rgba(16,185,129,.14); }
+        .move-controls { display:none; gap:8px; justify-content:center; margin-top:10px; }
+        .move-controls button { border:0; border-radius:10px; padding:8px 10px; font-weight:900; cursor:pointer; background:#f1f5f9; color:#0f172a; }
+        body.arrange-active .move-controls { display:flex; }
+
+
+        /* RESPONSIVE LAYOUT: PC / TABLET / PHONE */
+        .mobile-cart-bar { display: none; }
+        .table-wrap { width: 100%; overflow-x: auto; }
+
+        @media (min-width: 1101px) {
+            body { flex-direction: row; }
+            .sidebar { flex: 0 0 360px; }
+            .best-grid { grid-template-columns: repeat(3, minmax(220px, 1fr)); }
+        }
+
+        @media (max-width: 1100px) and (min-width: 701px) {
+            body { flex-direction: row; }
+            .sidebar { flex: 0 0 300px; }
+            .sidebar-header { padding: 16px; font-size: 1.5rem; }
+            .sidebar-footer { padding: 14px; }
+            .total-row { font-size: 1.55rem; }
+            .btn-side { padding: 14px; }
+            .header-brand { padding: 16px 22px; }
+            .logo-img { width: 52px; height: 52px; }
+            .view { padding: 18px 22px 92px 22px; }
+            .best-grid { grid-template-columns: repeat(2, minmax(180px, 1fr)); gap: 16px; }
+            .best-card { padding: 18px; }
+            .product-photo, .product-photo-empty { height: 125px; }
+            .best-card strong { font-size: 1.45rem; }
+            .best-price-tag { font-size: 1.45rem; }
+            .stats-grid { grid-template-columns: repeat(3, minmax(150px, 1fr)); }
+            .bottom-nav { padding: 12px 22px; gap: 10px; }
+        }
+
+        @media (max-width: 700px) {
+            html, body { height: 100%; }
+            body { display: block; overflow: hidden; background-attachment: scroll; }
+            .sidebar { position: fixed; left: 0; right: 0; bottom: 132px; top: auto; width: 100%; max-height: 54vh; flex: none; border-right: 0; border-top: 1px solid #e5e7eb; border-radius: 24px 24px 0 0; transform: translateY(calc(100% - 62px)); transition: transform .22s ease; box-shadow: 0 -8px 24px rgba(0,0,0,.18); z-index: 1200; }
+            .sidebar.open { transform: translateY(0); }
+            .sidebar-header { padding: 14px; font-size: 1.4rem; cursor: pointer; }
+            .order-list { max-height: 26vh; padding: 10px 14px; }
+            .order-item { padding: 10px; font-size: .88rem; }
+            .sidebar-footer { padding: 12px 14px; }
+            .total-row { font-size: 1.4rem; margin-bottom: 8px; }
+            .btn-side { padding: 13px; margin-top: 8px; border-radius: 12px; }
+            .main-content { min-height: 100vh; height: 100vh; }
+            .main-content::before { width: 70vw; height: 70vw; opacity: .05; }
+            .header-brand { padding: 12px 14px; gap: 10px; }
+            .header-brand h1 { font-size: 1.6rem !important; }
+            .logo-img { width: 45px; height: 45px; border-radius: 12px; }
+            #date-text { font-size: 1.05rem !important; }
+            .view { padding: 14px 12px 155px 12px; height: calc(100vh - 69px); overflow-y: auto; }
+            .best-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+            .best-card { padding: 12px; border-radius: 16px; }
+            .product-photo, .product-photo-empty { height: 92px; border-radius: 12px; margin-bottom: 10px; }
+            .product-photo-empty { font-size: 2.1rem; }
+            .best-card strong { font-size: 1.12rem; line-height: 1.05; min-height: 36px; }
+            .best-price-tag { font-size: 1.15rem; padding: 7px; }
+            .stats-grid { grid-template-columns: 1fr; gap: 10px; }
+            .stat-card { padding: 14px; border-radius: 16px; }
+            .stat-card div { font-size: 1.55rem; }
+            table { min-width: 720px; }
+            .packing-grid { grid-template-columns:1fr; }
+            .pack-card { padding:16px; border-radius:18px; }
+            .pack-no { font-size:1.65rem; }
+            #view-stock > div { flex-direction: column; }
+            .modal { width: 94%; padding: 22px; border-radius: 22px; }
+            .opt-btn { padding: 14px; font-size: 1rem; }
+            .bottom-nav { position: fixed; padding: 10px; gap: 8px; bottom: 0; }
+            .nav-btn { padding: 12px 8px; font-size: .78rem; border-radius: 13px; }
+            .mobile-cart-bar { display: flex; position: fixed; left: 10px; right: 10px; bottom: 72px; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px; border-radius: 18px; background: var(--dark); color: white; box-shadow: 0 8px 22px rgba(0,0,0,.22); z-index: 1300; }
+            .mobile-cart-bar b { font-size: .86rem; }
+            .mobile-cart-bar span { font-size: 1.2rem; font-weight: 900; color: var(--orange); }
+            .mobile-cart-bar button { border: 0; border-radius: 12px; background: var(--orange); color: white; font-weight: 900; padding: 10px 14px; min-width: 105px; }
+        }
+
+        @media (max-width: 380px) {
+            .best-grid { grid-template-columns: 1fr; }
+            .product-photo, .product-photo-empty { height: 125px; }
+        }
+
+        @media print {
+            body * { visibility: hidden; }
+            #receipt-print, #receipt-print * { visibility: visible; }
+            #receipt-print { display: block; position: absolute; left: 0; top: 0; width: 80mm; font-family: 'Courier New', monospace; padding: 5mm; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="receipt-print">
+        <div style="text-align:center;">
+            <img src="logocravo.png" style="width: 30mm; margin-bottom: 5px;">
+            <h2 style="margin:0;">CRAVO FRIED CHICKEN</h2>
+            <p id="r-date" style="font-size: 10px;"></p>
+        </div>
+        <hr style="border: 1px dashed #000">
+        <div id="r-items"></div>
+        <hr style="border: 1px dashed #000">
+        <div style="display:flex; justify-content:space-between; font-size: 14px;"><strong>TOTAL</strong><strong id="r-total"></strong></div>
+        <p style="text-align:center; font-size: 10px; margin-top: 10px;">THANK YOU FOR CRUNCHING!</p>
+    </div>
+
+    <aside class="sidebar">
+        <div class="sidebar-header" onclick="toggleMobileCart()">TERMINAL / CART</div>
+        <div id="cart-items" class="order-list"></div>
+        <div class="sidebar-footer">
+            <div class="total-row"><span>TOTAL</span><span id="total-val">RM 0.00</span></div>
+            <button class="btn-side" style="background:#94a3b8" onclick="clearCart()">🗑️ CLEAR</button>
+            <button class="btn-side" style="background:var(--dark)" onclick="openCheckout()">💳 CHECKOUT</button>
+        </div>
+    </aside>
+
+    <div class="mobile-cart-bar">
+        <b id="mobile-cart-count">0 items</b>
+        <span id="mobile-total-val">RM 0.00</span>
+        <button onclick="openCheckout()">CHECKOUT</button>
+    </div>
+
+    <main class="main-content">
+        <header class="header-brand">
+            <div style="display:flex; align-items:center; gap:15px;">
+                <img src="logocravo.png" class="logo-img">
+                <h1 style="font-family:'Bebas Neue'; font-size:2.2rem; margin:0;">CRAVO FRIED CHICKEN</h1>
+            </div>
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:flex-end;">
+                <span class="app-badge">SYNC APP</span>
+                <button id="install-app-btn" class="install-btn">📲 INSTALL APP</button>
+                <div id="date-text" style="text-align:right; font-family:'Bebas Neue'; font-size:1.5rem; color:var(--orange);"></div>
+            </div>
+        </header>
+
+        <div id="view-pos" class="view active-view">
+            <div class="menu-tools">
+                <button id="arrange-mode-btn" class="arrange-btn" onclick="toggleArrangeMode()">↕️ ARRANGE MENU</button>
+            </div>
+            <div class="best-grid" id="menu-grid"></div>
+        </div>
+
+        <div id="view-reports" class="view">
+            <h2 style="font-family:'Bebas Neue';">ANALYTICS</h2>
+            <div class="stats-grid">
+                <div class="stat-card"><h3>Gross Revenue</h3><div id="stat-revenue">RM 0.00</div></div>
+                <div class="stat-card" style="border-color:var(--orange)"><h3>Total Profit</h3><div id="stat-profit">RM 0.00</div></div>
+                <div class="stat-card" style="border-color:#3b82f6"><h3>Orders</h3><div id="stat-orders">0</div></div>
+            </div>
+            <table>
+                <thead><tr><th>Time</th><th>Details</th><th>Method</th><th>Total</th><th>Action</th></tr></thead>
+                <tbody id="report-body"></tbody>
+            </table>
+        </div>
+
+
+
+        <div id="view-packing" class="view">
+            <div class="packing-toolbar">
+                <div>
+                    <h2 style="font-family:'Bebas Neue'; margin:0;">PAPERLESS PACKING</h2>
+                    <div style="font-weight:800; color:#64748b; font-size:.9rem;">Checkout order akan terus masuk sini untuk staff packing.</div>
+                </div>
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <button id="filter-pending" class="pill-filter active" onclick="setPackingFilter('Pending')">Pending</button>
+                    <button id="filter-packed" class="pill-filter" onclick="setPackingFilter('Packed')">Packed</button>
+                    <button id="filter-all" class="pill-filter" onclick="setPackingFilter('All')">All</button>
+                </div>
+            </div>
+            <div class="stats-grid">
+                <div class="stat-card" style="border-color:var(--orange)"><h3>Pending Packing</h3><div id="pack-pending-count">0</div></div>
+                <div class="stat-card" style="border-color:var(--teal)"><h3>Packed Today</h3><div id="pack-packed-count">0</div></div>
+                <div class="stat-card" style="border-color:#3b82f6"><h3>Total Queue</h3><div id="pack-total-count">0</div></div>
+            </div>
+            <div id="packing-grid" class="packing-grid"></div>
+        </div>
+
+        <div id="view-stock" class="view">
+            <h2 style="font-family:'Bebas Neue';">INVENTORY</h2>
+            <div style="background:white; padding:15px; border-radius:15px; margin-bottom:15px; display:flex; gap:10px;">
+                <input type="text" id="new-name" class="edit-input" placeholder="Name">
+                <input type="number" id="new-price" class="edit-input" placeholder="Price">
+                <input type="number" id="new-cost" class="edit-input" placeholder="Cost">
+                <input type="file" id="new-image" accept="image/*" class="edit-input">
+                <button onclick="addNewProduct()" style="padding:10px 20px; background:var(--orange); color:white; border:none; border-radius:10px; font-weight:800;">ADD</button>
+            </div>
+            <table>
+                <thead><tr><th>Image</th><th>Name</th><th>Stock</th><th>Price</th><th>Cost</th><th>Action</th></tr></thead>
+                <tbody id="stock-body"></tbody>
+            </table>
+        </div>
+
+        <nav class="bottom-nav">
+            <button id="nav-pos" class="nav-btn active" onclick="switchView('pos')">🛒 SALES</button>
+            <button id="nav-reports" class="nav-btn" onclick="switchView('reports')">📈 ANALYTICS</button>
+            <button id="nav-packing" class="nav-btn" onclick="switchView('packing')">📋 PACKING</button>
+            <button id="nav-stock" class="nav-btn" onclick="switchView('stock')">📦 INVENTORY</button>
+        </nav>
+    </main>
+
+    <div class="modal-bg" id="fries-modal">
+        <div class="modal">
+            <h2 style="font-family:'Bebas Neue'; text-align:center;">SEASONING</h2>
+            <button class="opt-btn" onclick="confirmFries('Original')">🍟 ORIGINAL</button>
+            <button class="opt-btn" onclick="confirmFries('Cheese')">🧀 CHEESE</button>
+            <button class="opt-btn" onclick="confirmFries('Tomyam')">🌶️ TOMYAM</button>
+            <button class="opt-btn" onclick="confirmFries('Spicy')">🔥 SPICY</button>
+            <button class="btn-side" style="background:#666" onclick="closeModal('fries-modal')">BACK</button>
+        </div>
+    </div>
+
+    <div class="modal-bg" id="pay-modal">
+        <div class="modal">
+            <h2 style="font-family:'Bebas Neue'; text-align:center;">PAYMENT</h2>
+            <div id="modal-total" style="font-size:2.5rem; text-align:center; font-weight:900; color:var(--orange); margin-bottom:15px;">RM 0.00</div>
+            <div style="display:flex; gap:10px; margin-bottom:15px;">
+                <button id="m-cash" class="opt-btn active" onclick="setMethod('Cash')">💵 CASH</button>
+                <button id="m-qr" class="opt-btn" onclick="setMethod('QR')">📱 QR</button>
+            </div>
+            <div id="cash-section">
+                <input type="number" id="cash-in" class="edit-input" style="font-size:1.5rem; text-align:center;" placeholder="Cash In" oninput="doMath()">
+                <div style="text-align:center; margin-top:10px; font-weight:800; color:var(--teal);">CHANGE: <span id="change-out">RM 0.00</span></div>
+            </div>
+            <button id="complete-sale-btn" class="btn-side checkout-action" style="background:var(--teal)" onclick="processSale(false)">COMPLETE SALE</button>
+            <button id="print-receipt-btn" class="btn-side checkout-action" style="background:var(--dark)" onclick="processSale(true)">PRINT RECEIPT</button>
+            <button class="btn-side" style="background:none; color:#999" onclick="closeModal('pay-modal')">BACK</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <script>
+        // SUPABASE CONNECTION
+        // Use project URL only. Do not use /rest/v1/ here.
+        const SUPABASE_URL = "https://jtgiswzolnretpezfxpc.supabase.co";
+        const SUPABASE_KEY = "sb_publishable_9m30QqCS2ttu9td6F84ogQ_JizwPY3v";
+        const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        const BRAND_NAME = 'CRAVO FRIED CHICKEN';
+        let CRUNCH_BRAND_ID = null;
+
+        const defaultProducts = [
+            { name: 'CRUNCH CUT CHICKEN', price: 10.00, cost: 4.50, stock: 50, is_fries: false, image_url: '', category: 'Main Menu', priority: 2 },
+            { name: 'CRUNCH TENDERS', price: 12.00, cost: 5.50, stock: 40, is_fries: false, image_url: '', category: 'Main Menu', priority: 1 },
+            { name: 'CRUNCH FRIES', price: 5.00, cost: 2.00, stock: 100, is_fries: true, image_url: '', category: 'Sides', priority: 10 },
+            { name: 'NUGGET 6 PCS', price: 6.00, cost: 2.50, stock: 60, is_fries: false, image_url: '', category: 'Sides', priority: 11 },
+            { name: 'NUGGET 9 PCS', price: 8.00, cost: 3.50, stock: 40, is_fries: false, image_url: '', category: 'Sides', priority: 12 },
+            { name: 'WINGETTES & DRUMETTES', price: 9.00, cost: 4.00, stock: 30, is_fries: false, image_url: '', category: 'Main Menu', priority: 3 }
+        ];
+
+        let products = [];
+        let cart = [];
+        let sales = [];
+        let packingOrders = [];
+        let payMethod = 'Cash';
+        let packingFilter = 'Pending';
+        let isProcessingSale = false;
+        let arrangeMode = false;
+        let draggedProductId = null;
+
+        function showStatus(msg, error = false) {
+            let el = document.getElementById('sync-status');
+            if (!el) {
+                el = document.createElement('div');
+                el.id = 'sync-status';
+                el.style.cssText = 'position:fixed;top:10px;right:10px;z-index:9999;padding:8px 12px;border-radius:999px;font-size:12px;font-weight:800;color:white;box-shadow:0 4px 12px rgba(0,0,0,.15)';
+                document.body.appendChild(el);
+            }
+            el.innerText = msg;
+            el.style.background = error ? '#ef4444' : '#10b981';
+        }
+
+        function safeText(value) {
+            return String(value ?? '').replace(/'/g, "\'").replace(/\n/g, ' ');
+        }
+
+        function productById(id) {
+            return products.find(x => String(x.id) === String(id));
+        }
+
+        async function getCrunchBrandId() {
+            if (CRUNCH_BRAND_ID) return CRUNCH_BRAND_ID;
+            const { data, error } = await db.from('brands').select('id,name').eq('name', BRAND_NAME).maybeSingle();
+            if (!error && data?.id) {
+                CRUNCH_BRAND_ID = data.id;
+                return CRUNCH_BRAND_ID;
+            }
+            const { data: inserted, error: insertError } = await db.from('brands').insert({ name: BRAND_NAME, type: 'Food / POS' }).select('id').single();
+            if (insertError) throw insertError;
+            CRUNCH_BRAND_ID = inserted.id;
+            return CRUNCH_BRAND_ID;
+        }
+
+        async function ensureMenuPositionReady() {
+            // Safe to run every time. If column already exists, Supabase ignores it.
+            // Main setup is still best done in SQL Editor, but this keeps POS readable if column is missing.
+            return true;
+        }
+
+        function sortedProducts() {
+            return [...products].sort((a,b) => {
+                const pa = Number(a.priority ?? 9999);
+                const pb = Number(b.priority ?? 9999);
+                if (pa !== pb) return pa - pb;
+                return String(a.name || '').localeCompare(String(b.name || ''));
+            });
+        }
+
+        async function loadData(showSync = true) {
+            if (showSync) showStatus('SYNCING...');
+            try {
+                const brandId = await getCrunchBrandId();
+                let { data: p, error: pe } = await db.from('products').select('*').eq('brand', BRAND_NAME).order('priority', { ascending: true }).order('name', { ascending: true });
+                if (pe) {
+                    const fallback = await db.from('products').select('*').eq('brand_id', brandId).order('priority', { ascending: true }).order('name', { ascending: true });
+                    p = fallback.data;
+                    pe = fallback.error;
+                }
+                const { data: s, error: se } = await db.from('sales').select('*').eq('brand', BRAND_NAME).order('created_at', { ascending: true });
+                if (pe || se) throw (pe || se);
+                products = (p || []).map(x => ({ ...x, stock: Number(x.stock ?? x.stock_qty ?? 0), price: Number(x.price ?? 0), cost: Number(x.cost ?? 0), is_fries: Boolean(x.is_fries), priority: Number(x.priority ?? 9999) }));
+                sales = (s || []).map(x => ({ ...x, total: Number(x.total ?? x.total_amount ?? 0), method: x.method || x.payment_method || '', time: x.time || new Date(x.created_at || Date.now()).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}), details: x.details || x.receipt_no || '' }));
+                if (products.length === 0) {
+                    const seed = defaultProducts.map(x => ({ ...x, brand: BRAND_NAME, brand_id: brandId, is_active: true }));
+                    const { error } = await db.from('products').insert(seed);
+                    if (error) throw error;
+                    showStatus('DEFAULT MENU ADDED');
+                    return loadData(false);
+                }
+                showStatus('SYNCED TO RIZ DASHBOARD');
+                renderMenu();
+                if (document.getElementById('view-reports').classList.contains('active-view')) renderReports();
+                if (document.getElementById('view-stock').classList.contains('active-view')) renderStock();
+                await loadPackingOrders();
+            } catch (err) {
+                console.error(err);
+                showStatus('SUPABASE ERROR - CHECK SQL/POLICY', true);
+                products = defaultProducts.map((x, idx) => ({...x, id: 'local-' + idx}));
+                sales = [];
+                renderMenu();
+                await loadPackingOrders();
+            }
+        }
+
+        function subscribeSync() {
+            showStatus('SYNC READY');
+            try {
+                db.channel('crunch-lab-live')
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'packing_orders' }, () => loadPackingOrders())
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => loadData(false))
+                    .on('postgres_changes', { event: '*', schema: 'public', table: 'sales' }, () => loadData(false))
+                    .subscribe();
+            } catch (err) {
+                console.log('Realtime not active, polling fallback used.', err);
+            }
+        }
+
+        function localPackKey() { return 'crunch_lab_packing_orders_v1'; }
+        function savePackingLocal() { localStorage.setItem(localPackKey(), JSON.stringify(packingOrders)); }
+        function readPackingLocal() {
+            try { return JSON.parse(localStorage.getItem(localPackKey()) || '[]'); }
+            catch { return []; }
+        }
+
+        function makeOrderNo() {
+            const now = new Date();
+            const d = String(now.getDate()).padStart(2,'0');
+            const m = String(now.getMonth()+1).padStart(2,'0');
+            const tail = String(now.getTime()).slice(-4);
+            return `CL-${d}${m}-${tail}`;
+        }
+
+        function normaliseItems(items) {
+            if (Array.isArray(items)) return items;
+            if (typeof items === 'string') {
+                try { return JSON.parse(items); } catch { return []; }
+            }
+            return [];
+        }
+
+        async function loadPackingOrders() {
+            try {
+                const { data, error } = await db.from('packing_orders').select('*').order('created_at', { ascending: false });
+                if (error) throw error;
+                packingOrders = (data || []).map(o => ({ ...o, items: normaliseItems(o.items) }));
+                showStatus('PACKING SYNCED');
+            } catch (err) {
+                console.warn('Packing Supabase fallback:', err);
+                packingOrders = readPackingLocal();
+                showStatus('PACKING LOCAL MODE', true);
+            }
+            renderPacking();
+        }
+
+        async function savePackingOrder(order) {
+            packingOrders.unshift(order);
+            savePackingLocal();
+            renderPacking();
+            try {
+                const { error } = await db.from('packing_orders').upsert(order);
+                if (error) throw error;
+                showStatus('PACKING ORDER SENT');
+                await loadPackingOrders();
+            } catch (err) {
+                console.warn('Packing order saved locally only:', err);
+                showStatus('PACKING SAVED LOCAL ONLY', true);
+            }
+        }
+
+        async function updatePackingStatus(id, status) {
+            const order = packingOrders.find(o => String(o.id) === String(id));
+            if (!order) return;
+            order.status = status;
+            order.packed_at = status === 'Packed' ? new Date().toISOString() : null;
+            savePackingLocal();
+            renderPacking();
+            try {
+                const { error } = await db.from('packing_orders').update({ status: order.status, packed_at: order.packed_at }).eq('id', id);
+                if (error) throw error;
+                showStatus('PACKING UPDATED');
+            } catch (err) {
+                console.warn(err);
+                showStatus('PACKING UPDATE LOCAL ONLY', true);
+            }
+        }
+
+        async function deletePackingOrder(id) {
+            if (!confirm('Delete this packing order?')) return;
+            packingOrders = packingOrders.filter(o => String(o.id) !== String(id));
+            savePackingLocal();
+            renderPacking();
+            try {
+                const { error } = await db.from('packing_orders').delete().eq('id', id);
+                if (error) throw error;
+                showStatus('PACKING DELETED');
+            } catch (err) {
+                console.warn(err);
+                showStatus('DELETE LOCAL ONLY', true);
+            }
+        }
+
+        function setPackingFilter(filter) {
+            packingFilter = filter;
+            ['Pending','Packed','All'].forEach(f => {
+                const el = document.getElementById('filter-' + f.toLowerCase());
+                if (el) el.classList.toggle('active', packingFilter === f);
+            });
+            renderPacking();
+        }
+
+        function renderPacking() {
+            const grid = document.getElementById('packing-grid');
+            if (!grid) return;
+            const pending = packingOrders.filter(o => (o.status || 'Pending') === 'Pending').length;
+            const packed = packingOrders.filter(o => (o.status || 'Pending') === 'Packed').length;
+            const pc = document.getElementById('pack-pending-count');
+            const kc = document.getElementById('pack-packed-count');
+            const tc = document.getElementById('pack-total-count');
+            if (pc) pc.innerText = pending;
+            if (kc) kc.innerText = packed;
+            if (tc) tc.innerText = packingOrders.length;
+
+            const visible = packingOrders.filter(o => packingFilter === 'All' ? true : (o.status || 'Pending') === packingFilter);
+            if (visible.length === 0) {
+                grid.innerHTML = `<div class="empty-state">No ${packingFilter.toLowerCase()} packing order.</div>`;
+                return;
+            }
+
+            grid.innerHTML = visible.map(o => {
+                const items = normaliseItems(o.items);
+                const status = o.status || 'Pending';
+                const rows = items.map(i => `<div class="pack-row"><span>${i.qty}x ${i.name}</span><span>✓</span></div>`).join('');
+                return `<div class="pack-card">
+                    <div class="pack-head">
+                        <div>
+                            <div class="pack-no">${o.order_no || o.id}</div>
+                            <div class="pack-meta">${o.time || ''} • RM ${Number(o.total || 0).toFixed(2)}</div>
+                        </div>
+                        <span class="pack-status ${status === 'Packed' ? 'packed' : ''}">${status}</span>
+                    </div>
+                    <div class="pack-items">${rows}</div>
+                    <div class="pack-actions">
+                        ${status !== 'Packed' ? `<button class="pack-btn green" onclick="updatePackingStatus('${o.id}','Packed')">✅ MARK PACKED</button>` : `<button class="pack-btn dark" onclick="updatePackingStatus('${o.id}','Pending')">↩️ REOPEN</button>`}
+                        <button class="pack-btn red" onclick="deletePackingOrder('${o.id}')">DELETE</button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        async function saveProduct(product) {
+            const brandId = await getCrunchBrandId();
+            const clean = { name: String(product.name || '').toUpperCase(), brand: BRAND_NAME, brand_id: brandId, category: product.category || 'Food', price: Number(product.price || 0), cost: Number(product.cost || 0), stock: Number(product.stock || 0), is_fries: Boolean(product.is_fries), image_url: product.image_url || '', priority: Number(product.priority ?? 9999), is_active: true };
+            let result;
+            if (product.id && !String(product.id).startsWith('local-')) result = await db.from('products').update(clean).eq('id', product.id).select().single();
+            else result = await db.from('products').insert(clean).select().single();
+            if (result.error) { console.error(result.error); showStatus('SAVE ERROR', true); alert('Cannot save to Supabase. Check table/policy.'); }
+            else { Object.assign(product, result.data); showStatus('SAVED TO DASHBOARD'); }
+        }
+
+        async function saveAllProducts() {
+            const brandId = await getCrunchBrandId();
+            for (const p of products) {
+                if (!p.id || String(p.id).startsWith('local-')) continue;
+                const { error } = await db.from('products').update({ brand: BRAND_NAME, brand_id: brandId, stock: Number(p.stock || 0), price: Number(p.price || 0), cost: Number(p.cost || 0), image_url: p.image_url || '', is_fries: Boolean(p.is_fries), priority: Number(p.priority ?? 9999) }).eq('id', p.id);
+                if (error) { console.error(error); showStatus('STOCK SAVE ERROR', true); alert('Cannot update stock in Supabase. Check table/policy.'); return; }
+            }
+            showStatus('STOCK SYNCED TO DASHBOARD');
+        }
+
+        async function saveSale(sale) {
+            const brandId = await getCrunchBrandId();
+            const saleRow = { brand: BRAND_NAME, brand_id: brandId, receipt_no: sale.receipt_no, total: Number(sale.total || 0), total_amount: Number(sale.total || 0), payment_method: sale.method, method: sale.method, details: sale.details, profit: Number(sale.profit || 0), time: sale.time, date: sale.date };
+            const { data, error } = await db.from('sales').insert(saleRow).select('id').single();
+            if (error) { console.error(error); showStatus('SALE SAVE ERROR', true); alert('Sale not saved to Supabase. Check table/policy.'); return null; }
+            const saleId = data.id;
+            const items = (sale.items || []).map(i => ({ sale_id: saleId, product_id: i.pid || null, product_name: i.name, qty: Number(i.qty || 1), price: Number(i.price || 0), subtotal: Number(i.qty || 1) * Number(i.price || 0) }));
+            if (items.length) await db.from('sales_items').insert(items);
+            showStatus('SALE SENT TO RIZ DASHBOARD');
+            return saleId;
+        }
+
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('date-text').innerText = now.toLocaleDateString('en-MY', {day:'2-digit', month:'short', year:'numeric'}).toUpperCase();
+        }
+        setInterval(updateClock, 1000); updateClock();
+
+        function renderMenu() {
+            const list = sortedProducts();
+            document.getElementById('menu-grid').innerHTML = list.map((p, index) => `
+                <div class="best-card ${arrangeMode ? 'arrange-mode' : ''}" 
+                    draggable="${arrangeMode ? 'true' : 'false'}"
+                    data-id="${safeText(p.id)}"
+                    onclick="handleMenuCardClick(event, '${safeText(p.id)}')"
+                    ondragstart="onProductDragStart(event, '${safeText(p.id)}')"
+                    ondragover="onProductDragOver(event)"
+                    ondragleave="onProductDragLeave(event)"
+                    ondrop="onProductDrop(event, '${safeText(p.id)}')"
+                    ondragend="onProductDragEnd(event)">
+                    <span style="position:absolute; top:8px; right:12px; font-size:0.7rem; font-weight:800; color:#ef4444;">${Number(p.stock || 0)} left</span>
+                    ${arrangeMode ? `<span style="position:absolute; top:8px; left:12px; font-size:.72rem; font-weight:900; background:#fff7ed; color:#c2410c; padding:5px 8px; border-radius:999px;">#${index + 1}</span>` : ''}
+                    ${p.image_url ? `<img src="${p.image_url}" class="product-photo" alt="${safeText(p.name)}">` : `<div class="product-photo-empty">🍗</div>`}
+                    <strong>${p.name}</strong>
+                    <div class="best-price-tag">RM ${Number(p.price).toFixed(2)}</div>
+                    <div class="move-controls">
+                        <button onclick="moveProductPosition(event, '${safeText(p.id)}', -1)">⬆️ UP</button>
+                        <button onclick="moveProductPosition(event, '${safeText(p.id)}', 1)">⬇️ DOWN</button>
+                    </div>
+                </div>`).join('');
+        }
+
+        function handleMenuCardClick(event, id) {
+            if (arrangeMode) {
+                event.preventDefault();
+                return;
+            }
+            handleItem(id);
+        }
+
+        function toggleArrangeMode() {
+            arrangeMode = !arrangeMode;
+            document.body.classList.toggle('arrange-active', arrangeMode);
+            const btn = document.getElementById('arrange-mode-btn');
+            if (btn) {
+                btn.classList.toggle('active', arrangeMode);
+                btn.innerText = arrangeMode ? '✅ DONE ARRANGE' : '↕️ ARRANGE MENU';
+            }
+            renderMenu();
+        }
+
+        function onProductDragStart(event, id) {
+            if (!arrangeMode) return;
+            draggedProductId = id;
+            event.currentTarget.classList.add('dragging');
+            event.dataTransfer.effectAllowed = 'move';
+            event.dataTransfer.setData('text/plain', id);
+        }
+
+        function onProductDragOver(event) {
+            if (!arrangeMode) return;
+            event.preventDefault();
+            event.currentTarget.classList.add('drag-over');
+        }
+
+        function onProductDragLeave(event) {
+            event.currentTarget.classList.remove('drag-over');
+        }
+
+        async function onProductDrop(event, targetId) {
+            if (!arrangeMode) return;
+            event.preventDefault();
+            event.currentTarget.classList.remove('drag-over');
+            const sourceId = draggedProductId || event.dataTransfer.getData('text/plain');
+            if (!sourceId || String(sourceId) === String(targetId)) return;
+            await reorderProducts(sourceId, targetId);
+        }
+
+        function onProductDragEnd(event) {
+            event.currentTarget.classList.remove('dragging');
+            document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+            draggedProductId = null;
+        }
+
+        async function moveProductPosition(event, id, direction) {
+            event.preventDefault();
+            event.stopPropagation();
+            const list = sortedProducts();
+            const index = list.findIndex(p => String(p.id) === String(id));
+            const targetIndex = index + direction;
+            if (index < 0 || targetIndex < 0 || targetIndex >= list.length) return;
+            await reorderProducts(id, list[targetIndex].id);
+        }
+
+        async function reorderProducts(sourceId, targetId) {
+            const list = sortedProducts();
+            const sourceIndex = list.findIndex(p => String(p.id) === String(sourceId));
+            const targetIndex = list.findIndex(p => String(p.id) === String(targetId));
+            if (sourceIndex < 0 || targetIndex < 0) return;
+            const [moved] = list.splice(sourceIndex, 1);
+            list.splice(targetIndex, 0, moved);
+            list.forEach((p, idx) => { p.priority = idx + 1; });
+            products = list;
+            renderMenu();
+            await saveMenuPositions();
+        }
+
+        async function saveMenuPositions() {
+            showStatus('SAVING MENU POSITION...');
+            const updates = sortedProducts()
+                .filter(p => p.id && !String(p.id).startsWith('local-'))
+                .map((p, idx) => db.from('products').update({ priority: idx + 1 }).eq('id', p.id));
+            const results = await Promise.all(updates);
+            const error = results.find(r => r.error)?.error;
+            if (error) {
+                console.error(error);
+                showStatus('POSITION SAVE ERROR - RUN SQL PRIORITY COLUMN', true);
+                alert('Position tak save. Run SQL: alter table products add column if not exists priority numeric default 9999;');
+                return;
+            }
+            showStatus('MENU POSITION SAVED');
+        }
+
+        function handleItem(id) {
+            const p = productById(id);
+            if(!p) return;
+            if(Number(p.stock || 0) <= 0) return alert("OUT OF STOCK");
+            if(p.is_fries) document.getElementById('fries-modal').style.display = 'flex';
+            else addToCart(p.name, p.price, p.cost, p.id);
+        }
+
+        function confirmFries(flavor) {
+            const p = products.find(x => x.is_fries);
+            if (!p) return;
+            addToCart(`${p.name} (${flavor})`, p.price, p.cost, p.id);
+            closeModal('fries-modal');
+        }
+
+        function addToCart(name, price, cost, pid) {
+            const exists = cart.find(x => x.name === name);
+            if(exists) exists.qty++; else cart.push({ name, price, cost, pid, qty: 1 });
+            updateUI();
+        }
+
+        function updateUI() {
+            let total = 0;
+            document.getElementById('cart-items').innerHTML = cart.map((i, idx) => {
+                total += (parseFloat(i.price) * i.qty);
+                return `<div class="order-item"><b>${i.qty}x ${i.name}</b><button class="remove-btn" onclick="cart.splice(${idx},1); updateUI();">DEL</button></div>`;
+            }).join('');
+            document.getElementById('total-val').innerText = `RM ${total.toFixed(2)}`;
+            const mobileTotal = document.getElementById('mobile-total-val');
+            const mobileCount = document.getElementById('mobile-cart-count');
+            if (mobileTotal) mobileTotal.innerText = `RM ${total.toFixed(2)}`;
+            if (mobileCount) {
+                const qty = cart.reduce((sum, item) => sum + item.qty, 0);
+                mobileCount.innerText = `${qty} item${qty === 1 ? '' : 's'}`;
+            }
+        }
+
+        function toggleMobileCart() {
+            const sidebar = document.querySelector('.sidebar');
+            if (sidebar) sidebar.classList.toggle('open');
+        }
+
+        function setMethod(m) {
+            payMethod = m;
+            document.getElementById('m-cash').classList.toggle('active', m==='Cash');
+            document.getElementById('m-qr').classList.toggle('active', m==='QR');
+            document.getElementById('cash-section').style.display = (m==='Cash') ? 'block' : 'none';
+        }
+
+        function doMath() {
+            const t = parseFloat(document.getElementById('total-val').innerText.replace('RM ', ''));
+            const i = parseFloat(document.getElementById('cash-in').value) || 0;
+            document.getElementById('change-out').innerText = `RM ${Math.max(0, i-t).toFixed(2)}`;
+        }
+
+        function setCheckoutButtons(disabled) {
+            document.querySelectorAll('.checkout-action').forEach(btn => {
+                btn.disabled = disabled;
+                btn.style.opacity = disabled ? '0.55' : '1';
+                btn.style.cursor = disabled ? 'not-allowed' : 'pointer';
+            });
+        }
+
+        async function processSale(printReceipt = false) {
+            if (isProcessingSale) return;
+            if (!cart.length) return;
+            isProcessingSale = true;
+            setCheckoutButtons(true);
+
+            try {
+                const t = parseFloat(document.getElementById('total-val').innerText.replace('RM ', '')) || 0;
+                if(t <= 0) return;
+
+                if (payMethod === 'Cash') {
+                    const cashIn = parseFloat(document.getElementById('cash-in').value) || 0;
+                    if (cashIn < t) {
+                        alert('Cash received is less than total.');
+                        return;
+                    }
+                }
+
+                let cTotal = 0;
+                let receiptItemsHtml = "";
+                const currentCart = cart.map(i => ({ ...i }));
+                const orderId = `CL-${Date.now()}-${Math.floor(Math.random() * 9999)}`;
+                const orderNo = makeOrderNo();
+
+                // Clear cart early to prevent duplicate submit.
+                cart = [];
+                updateUI();
+
+                currentCart.forEach(i => {
+                    const p = productById(i.pid);
+                    if(p) {
+                        p.stock = Math.max(0, Number(p.stock) - Number(i.qty));
+                        cTotal += (parseFloat(p.cost) * i.qty);
+                    }
+                    receiptItemsHtml += `<div style="display:flex; justify-content:space-between; font-size:12px;"><span>${i.qty}x ${i.name}</span><span>RM ${(i.qty * i.price).toFixed(2)}</span></div>`;
+                });
+
+                const now = new Date();
+                const newSale = {
+                    id: Date.now(),
+                    time: now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}),
+                    date: now.toLocaleString(),
+                    details: currentCart.map(i => `${i.qty}x ${i.name}`).join(', '),
+                    method: payMethod,
+                    receipt_no: orderNo,
+                    total: parseFloat(t),
+                    profit: parseFloat(t - cTotal),
+                    items: currentCart
+                };
+
+                const packOrder = {
+                    id: orderId,
+                    order_no: orderNo,
+                    time: newSale.time,
+                    date: newSale.date,
+                    details: newSale.details,
+                    method: payMethod,
+                    total: parseFloat(t),
+                    status: 'Pending',
+                    items: currentCart.map(i => ({ name: i.name, qty: i.qty, price: Number(i.price) })),
+                    packed_at: null,
+                    created_at: now.toISOString()
+                };
+
+                sales.push(newSale);
+                await saveSale(newSale);
+                await saveAllProducts();
+                await savePackingOrder(packOrder);
+
+                document.getElementById('r-date').innerText = `${newSale.date} • ${orderNo}`;
+                document.getElementById('r-items').innerHTML = receiptItemsHtml;
+                document.getElementById('r-total').innerText = `RM ${t.toFixed(2)}`;
+
+                if (printReceipt) window.print();
+
+                renderMenu();
+                if (document.getElementById('view-reports').classList.contains('active-view')) renderReports();
+                if (document.getElementById('view-packing').classList.contains('active-view')) renderPacking();
+                closeModal('pay-modal');
+                document.getElementById('cash-in').value = '';
+                doMath();
+            } catch (err) {
+                console.error(err);
+                alert('System error while processing sale. Sale was stopped before duplicate order. Check Console for details.');
+            } finally {
+                isProcessingSale = false;
+                setCheckoutButtons(false);
+            }
+        }
+
+        function renderReports() {
+            let r=0, p=0;
+            document.getElementById('report-body').innerHTML = sales.map(s => {
+                const total = parseFloat(s.total) || 0;
+                const profit = parseFloat(s.profit) || 0;
+                r += total; p += profit;
+                return `<tr><td>${s.time}</td><td><small>${s.details}</small></td><td>${s.method}</td><td>RM ${total.toFixed(2)}</td><td><button onclick="delSale('${safeText(s.id)}')" style="color:red; background:none; border:none; cursor:pointer;">🗑️</button></td></tr>`;
+            }).reverse().join('');
+            document.getElementById('stat-revenue').innerText = `RM ${r.toFixed(2)}`;
+            document.getElementById('stat-profit').innerText = `RM ${p.toFixed(2)}`;
+            document.getElementById('stat-orders').innerText = sales.length;
+        }
+
+        function renderStock() {
+            document.getElementById('stock-body').innerHTML = products.map(p => `
+                <tr>
+                    <td>
+                        ${p.image_url ? `<img src="${p.image_url}" class="thumb-preview">` : `<div class="thumb-preview" style="display:flex;align-items:center;justify-content:center;">🍗</div>`}
+                        <br><label class="img-upload-label">UPLOAD
+                            <input type="file" accept="image/*" onchange="uploadProductImage('${safeText(p.id)}', this.files[0])" style="display:none;">
+                        </label>
+                    </td>
+                    <td><input type="text" class="edit-input" value="${safeText(p.name)}" onchange="editItem('${safeText(p.id)}','name',this.value)"></td>
+                    <td><b>${Number(p.stock || 0)}</b> <button onclick="addStock('${safeText(p.id)}')">+</button></td>
+                    <td><input type="number" class="edit-input" value="${Number(p.price || 0)}" onchange="editItem('${safeText(p.id)}','price',this.value)"></td>
+                    <td><input type="number" class="edit-input" value="${Number(p.cost || 0)}" onchange="editItem('${safeText(p.id)}','cost',this.value)"></td>
+                    <td><button onclick="delItem('${safeText(p.id)}')" style="color:red; background:none; border:none; cursor:pointer;">DEL</button></td>
+                </tr>`).join('');
+        }
+
+        function fileToBase64(file) {
+            return new Promise((resolve, reject) => {
+                if (!file) return resolve('');
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function uploadProductImage(id, file) {
+            if (!file) return;
+            const p = productById(id);
+            if (!p) return;
+            showStatus('UPLOADING IMAGE...');
+            p.image_url = await fileToBase64(file);
+            await saveProduct(p);
+            renderStock(); renderMenu();
+        }
+        async function editItem(id, f, v) { const p = productById(id); if (!p) return; p[f] = (f === 'name') ? v.toUpperCase() : parseFloat(v); await saveProduct(p); renderMenu(); }
+        async function addStock(id) { const q = prompt("Qty:"); if(q) { const p = productById(id); if (!p) return; p.stock = Number(p.stock || 0) + parseInt(q); await saveProduct(p); renderStock(); renderMenu(); } }
+        async function delSale(id) { sales = sales.filter(x => String(x.id) !== String(id)); await db.from('sales').delete().eq('id', id); renderReports(); }
+        async function delItem(id) { products = products.filter(x => String(x.id) !== String(id)); await db.from('products').delete().eq('id', id); renderStock(); renderMenu(); }
+        async function addNewProduct() {
+            const n = document.getElementById('new-name').value;
+            const pr = parseFloat(document.getElementById('new-price').value);
+            const co = parseFloat(document.getElementById('new-cost').value) || 0;
+            const imgFile = document.getElementById('new-image').files[0];
+            if(!n || isNaN(pr)) return;
+            const imageUrl = imgFile ? await fileToBase64(imgFile) : '';
+            const newProduct = { name: n.toUpperCase(), price: pr, cost: co, stock: 0, is_fries: false, image_url: imageUrl, category: 'Food', priority: products.length + 1 };
+            await saveProduct(newProduct);
+            products.push(newProduct);
+            document.getElementById('new-name').value = '';
+            document.getElementById('new-price').value = '';
+            document.getElementById('new-cost').value = '';
+            document.getElementById('new-image').value = '';
+            renderStock(); renderMenu();
+        }
+
+        async function switchView(v) {
+            document.querySelectorAll('.view').forEach(e => e.classList.remove('active-view'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('view-'+v).classList.add('active-view');
+            document.getElementById('nav-'+v).classList.add('active');
+            if(v==='reports') { await loadData(); renderReports(); }
+            if(v==='stock') { await loadData(); renderStock(); }
+            if(v==='packing') { await loadPackingOrders(); renderPacking(); }
+        }
+
+        function openCheckout() { if(cart.length>0) { document.getElementById('modal-total').innerText = document.getElementById('total-val').innerText; document.getElementById('pay-modal').style.display = 'flex'; } }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+        function clearCart() { cart = []; updateUI(); }
+
+
+
+        // PWA INSTALL APP SETUP
+        let deferredInstallPrompt = null;
+        const installBtn = document.getElementById('install-app-btn');
+
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./service-worker.js').catch(() => {
+                    console.log('Service worker not active. Use localhost or HTTPS to enable install mode.');
+                });
+            });
+        }
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredInstallPrompt = e;
+            if (installBtn) installBtn.classList.add('show');
+        });
+
+        if (installBtn) {
+            installBtn.addEventListener('click', async () => {
+                if (!deferredInstallPrompt) {
+                    alert('Kalau button install belum keluar, buka system melalui HTTPS / localhost. Chrome/Edge: menu ⋮ > Apps > Install this site as app.');
+                    return;
+                }
+                deferredInstallPrompt.prompt();
+                await deferredInstallPrompt.userChoice;
+                deferredInstallPrompt = null;
+                installBtn.classList.remove('show');
+            });
+        }
+
+        loadData();
+        subscribeSync();
+        setInterval(() => loadData(false), 12000);
+    </script>
+</body>
+</html>
