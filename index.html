@@ -462,11 +462,10 @@
 
     <div class="modal-bg" id="fries-modal">
         <div class="modal">
-            <h2 style="font-family:'Bebas Neue'; text-align:center;">SEASONING</h2>
-            <button class="opt-btn" onclick="confirmFries('Original')">🍟 ORIGINAL</button>
-            <button class="opt-btn" onclick="confirmFries('Cheese')">🧀 CHEESE</button>
-            <button class="opt-btn" onclick="confirmFries('Tomyam')">🌶️ TOMYAM</button>
-            <button class="opt-btn" onclick="confirmFries('Spicy')">🔥 SPICY</button>
+            <h2 style="font-family:'Bebas Neue'; text-align:center;">CHOOSE OPTION</h2>
+            <div id="flavour-product-name" style="text-align:center; font-weight:900; color:#64748b; margin-bottom:15px;"></div>
+            <button class="opt-btn" onclick="confirmFlavour('Original')">🍗 ORIGINAL</button>
+            <button class="opt-btn" onclick="confirmFlavour('Spicy')">🔥 SPICY</button>
             <button class="btn-side" style="background:#666" onclick="closeModal('fries-modal')">BACK</button>
         </div>
     </div>
@@ -520,6 +519,7 @@
         let isProcessingSale = false;
         let arrangeMode = false;
         let draggedProductId = null;
+        let selectedFlavourProductId = null;
 
         function showStatus(msg, error = false) {
             let el = document.getElementById('sync-status');
@@ -1152,15 +1152,25 @@
             const p = productById(id);
             if(!p) return;
             if(Number(p.stock || 0) <= 0) return alert("OUT OF STOCK");
-            if(p.is_fries) document.getElementById('fries-modal').style.display = 'flex';
-            else addToCart(p.name, p.price, p.cost, p.id);
+
+            // Every menu item must ask Original / Spicy before masuk cart.
+            selectedFlavourProductId = id;
+            const label = document.getElementById('flavour-product-name');
+            if (label) label.innerText = p.name;
+            document.getElementById('fries-modal').style.display = 'flex';
         }
 
-        function confirmFries(flavor) {
-            const p = products.find(x => x.is_fries);
+        function confirmFlavour(flavour) {
+            const p = productById(selectedFlavourProductId);
             if (!p) return;
-            addToCart(`${p.name} (${flavor})`, p.price, p.cost, p.id);
+            addToCart(`${p.name} (${flavour})`, p.price, p.cost, p.id);
+            selectedFlavourProductId = null;
             closeModal('fries-modal');
+        }
+
+        // Backward compatible name if older buttons/cache still call this.
+        function confirmFries(flavour) {
+            confirmFlavour(flavour);
         }
 
         function addToCart(name, price, cost, pid) {
