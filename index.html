@@ -65,6 +65,11 @@
         .edit-input { padding: 8px; border: 1px solid #ddd; border-radius: 6px; width: 100%; font-family: 'Outfit'; }
         .img-upload-label { display:inline-block; padding:8px 10px; border-radius:10px; background:var(--dark); color:white; font-size:.75rem; font-weight:800; cursor:pointer; white-space:nowrap; }
         .thumb-preview { width:64px; height:48px; object-fit:cover; border-radius:10px; border:1px solid #ddd; background:#f8fafc; }
+        .category-select { min-width: 155px; }
+        .cat-manage-card { background:white; padding:15px; border-radius:15px; margin-bottom:15px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+        .cat-chip { display:inline-flex; align-items:center; gap:8px; padding:8px 10px; border-radius:999px; background:#fff7ed; color:#c2410c; border:1px solid #fed7aa; font-weight:900; font-size:.78rem; }
+        .cat-chip button { border:0; background:#ef4444; color:white; border-radius:999px; width:22px; height:22px; cursor:pointer; font-weight:900; }
+
 
         .bottom-nav { position: absolute; bottom: 0; left: 0; width: 100%; display: flex; gap: 15px; padding: 15px 40px; background: white; border-top: 1px solid #eee; z-index: 20; }
         .nav-btn { flex: 1; background: #f1f5f9; border: none; padding: 15px; border-radius: 15px; font-weight: 800; cursor: pointer; color: #64748b; }
@@ -429,24 +434,22 @@
                 <input type="text" id="new-name" class="edit-input" placeholder="Name">
                 <input type="number" id="new-price" class="edit-input" placeholder="Price">
                 <input type="number" id="new-cost" class="edit-input" placeholder="Cost">
-                <select id="new-category" class="edit-input">
-        <option value="Regular Menu">Regular Menu</option>
-        <option value="Combo">Combo</option>
-        <option value="Bucket">Bucket</option>
-        <option value="Sides">Sides</option>
-        <option value="__new__">➕ Add New Category</option>
-                    <option value="Regular Menu">Regular Menu</option>
-                    <option value="Combo">Combo</option>
-                    <option value="Bucket">Bucket</option>
-                    <option value="Sides">Sides</option>
-                </select>
+                <select id="new-category" class="edit-input category-select"></select>
                 <input type="file" id="new-image" accept="image/*" class="edit-input">
                 <button onclick="addNewProduct()" style="padding:10px 20px; background:var(--orange); color:white; border:none; border-radius:10px; font-weight:800;">ADD</button>
             </div>
+            <div class="cat-manage-card">
+                <div style="font-weight:900; color:var(--dark);">EDIT MENU CATEGORY</div>
+                <input type="text" id="category-name-input" class="edit-input" placeholder="New category name" style="max-width:260px;">
+                <button onclick="addCategoryFromManager()" style="padding:10px 16px; background:var(--dark); color:white; border:none; border-radius:10px; font-weight:900;">ADD CATEGORY</button>
+                <div id="category-chip-list" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
+            </div>
+            <div class="table-wrap">
             <table>
-                <thead><tr><th>Image</th><th>Name</th><th>Stock</th><th>Price</th><th>Cost</th><th>Action</th></tr></thead>
+                <thead><tr><th>Image</th><th>Name</th><th>Category</th><th>Stock</th><th>Price</th><th>Cost</th><th>Action</th></tr></thead>
                 <tbody id="stock-body"></tbody>
             </table>
+            </div>
         </div>
 
         <nav class="bottom-nav">
@@ -486,27 +489,7 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2">
-document.getElementById("new-category").addEventListener("change", function () {
-    if (this.value === "__new__") {
-        const newCat = prompt("Enter new category name:");
-
-        if (newCat && newCat.trim()) {
-            const clean = newCat.trim();
-
-            const opt = document.createElement("option");
-            opt.value = clean;
-            opt.textContent = clean;
-
-            this.insertBefore(opt, this.lastElementChild);
-            this.value = clean;
-        } else {
-            this.value = "Regular Menu";
-        }
-    }
-});
-
-</script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <script>
         // SUPABASE CONNECTION
@@ -528,6 +511,7 @@ document.getElementById("new-category").addEventListener("change", function () {
         ];
 
         let products = [];
+        let categories = ['Regular Menu', 'Combo', 'Bucket', 'Sides'];
         let cart = [];
         let sales = [];
         let packingOrders = [];
@@ -606,7 +590,9 @@ document.getElementById("new-category").addEventListener("change", function () {
                     showStatus('DEFAULT MENU ADDED');
                     return loadData(false);
                 }
+                categories = getAllCategories();
                 showStatus('SYNCED TO RIZ DASHBOARD');
+                refreshCategoryUI();
                 renderMenu();
                 if (document.getElementById('view-reports').classList.contains('active-view')) renderReports();
                 if (document.getElementById('view-stock').classList.contains('active-view')) renderStock();
@@ -886,6 +872,84 @@ document.getElementById("new-category").addEventListener("change", function () {
         }
         setInterval(updateClock, 1000); updateClock();
 
+
+
+        function getAllCategories() {
+            const base = ['Regular Menu', 'Combo', 'Bucket', 'Sides'];
+            const fromProducts = products.map(p => normaliseCategoryName(p.category)).filter(Boolean);
+            const merged = [...new Set([...base, ...categories, ...fromProducts])];
+            return merged.sort((a,b) => {
+                const oa = sectionOrder(a);
+                const ob = sectionOrder(b);
+                if (oa !== ob) return oa - ob;
+                return a.localeCompare(b);
+            });
+        }
+
+        function renderCategoryOptions(selected = 'Regular Menu') {
+            const cats = getAllCategories();
+            const options = cats.map(cat => `<option value="${safeText(cat)}" ${cat === selected ? 'selected' : ''}>${cat}</option>`).join('') + `<option value="__new__">➕ Add New Category</option>`;
+            return options;
+        }
+
+        function refreshCategoryUI() {
+            const newCat = document.getElementById('new-category');
+            if (newCat) newCat.innerHTML = renderCategoryOptions(newCat.value && newCat.value !== '__new__' ? newCat.value : 'Regular Menu');
+            const chips = document.getElementById('category-chip-list');
+            if (chips) {
+                chips.innerHTML = getAllCategories().map(cat => `<span class="cat-chip">${getCategoryIcon(cat)} ${cat}<button title="Remove category" onclick="removeCategoryFromManager('${safeText(cat)}')">×</button></span>`).join('');
+            }
+        }
+
+        function askAndAddNewCategory(selectEl) {
+            const newCat = prompt('Enter new category name:');
+            if (newCat && newCat.trim()) {
+                const clean = newCat.trim();
+                if (!categories.includes(clean)) categories.push(clean);
+                refreshCategoryUI();
+                if (selectEl) selectEl.value = clean;
+                showStatus('CATEGORY ADDED');
+                return clean;
+            }
+            if (selectEl) selectEl.value = 'Regular Menu';
+            return null;
+        }
+
+        function addCategoryFromManager() {
+            const input = document.getElementById('category-name-input');
+            const value = (input?.value || '').trim();
+            if (!value) return alert('Enter category name first.');
+            if (!categories.includes(value)) categories.push(value);
+            if (input) input.value = '';
+            refreshCategoryUI();
+            renderStock();
+            renderMenu();
+            showStatus('CATEGORY READY');
+        }
+
+        function removeCategoryFromManager(cat) {
+            const used = products.some(p => normaliseCategoryName(p.category) === cat);
+            if (used) return alert('This category is still used by menu items. Change those items to another category first.');
+            categories = categories.filter(c => c !== cat);
+            refreshCategoryUI();
+            renderStock();
+            renderMenu();
+        }
+
+        async function editItemCategory(id, value) {
+            if (value === '__new__') {
+                const el = event?.target;
+                value = askAndAddNewCategory(el);
+                if (!value) return;
+            }
+            const p = productById(id);
+            if (!p) return;
+            p.category = value;
+            await saveProduct(p);
+            renderStock();
+            renderMenu();
+            showStatus('CATEGORY SYNCED TO DASHBOARD');
+        }
 
         function getCategoryIcon(category) {
             const c = String(category || '').toLowerCase();
@@ -1260,6 +1324,7 @@ document.getElementById("new-category").addEventListener("change", function () {
                         </label>
                     </td>
                     <td><input type="text" class="edit-input" value="${safeText(p.name)}" onchange="editItem('${safeText(p.id)}','name',this.value)"></td>
+                    <td><select class="edit-input category-select" onchange="editItemCategory('${safeText(p.id)}', this.value)">${renderCategoryOptions(normaliseCategoryName(p.category))}</select></td>
                     <td><b>${Number(p.stock || 0)}</b> <button onclick="addStock('${safeText(p.id)}')">+</button></td>
                     <td><input type="number" class="edit-input" value="${Number(p.price || 0)}" onchange="editItem('${safeText(p.id)}','price',this.value)"></td>
                     <td><input type="number" class="edit-input" value="${Number(p.cost || 0)}" onchange="editItem('${safeText(p.id)}','cost',this.value)"></td>
@@ -1307,7 +1372,10 @@ document.getElementById("new-category").addEventListener("change", function () {
             const imgFile = document.getElementById('new-image').files[0];
             if(!n || isNaN(pr)) return;
             const imageUrl = imgFile ? await fileToBase64(imgFile) : '';
-            const newProduct = { name: n.toUpperCase(), price: pr, cost: co, stock: 0, is_fries: false, image_url: imageUrl, category: (document.getElementById('new-category')?.value || 'Regular Menu'), priority: products.length + 1 };
+            const catSelect = document.getElementById('new-category');
+            let category = catSelect?.value || 'Regular Menu';
+            if (category === '__new__') category = askAndAddNewCategory(catSelect) || 'Regular Menu';
+            const newProduct = { name: n.toUpperCase(), price: pr, cost: co, stock: 0, is_fries: false, image_url: imageUrl, category, priority: products.length + 1 };
             const savedProduct = await saveProduct(newProduct);
             if (!savedProduct) return;
 
@@ -1373,28 +1441,16 @@ document.getElementById("new-category").addEventListener("change", function () {
             });
         }
 
+        refreshCategoryUI();
+        const newCategorySelect = document.getElementById('new-category');
+        if (newCategorySelect) {
+            newCategorySelect.addEventListener('change', function() {
+                if (this.value === '__new__') askAndAddNewCategory(this);
+            });
+        }
         loadData();
         subscribeSync();
         setInterval(() => loadData(false), 12000);
-    
-document.getElementById("new-category").addEventListener("change", function () {
-    if (this.value === "__new__") {
-        const newCat = prompt("Enter new category name:");
-
-        if (newCat && newCat.trim()) {
-            const clean = newCat.trim();
-
-            const opt = document.createElement("option");
-            opt.value = clean;
-            opt.textContent = clean;
-
-            this.insertBefore(opt, this.lastElementChild);
-            this.value = clean;
-        } else {
-            this.value = "Regular Menu";
-        }
-    }
-});
 
 </script>
 </body>
