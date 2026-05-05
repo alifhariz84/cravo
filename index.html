@@ -634,7 +634,7 @@
         function subscribeSync() {
             showStatus('SYNC READY');
             try {
-                db.channel('crunch-lab-live')
+                db.channel('pos-live-' + BRAND_NAME.toLowerCase().replace(/[^a-z0-9]/g, '-'))
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'packing_orders' }, () => loadPackingOrders())
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => loadData(false))
                     .on('postgres_changes', { event: '*', schema: 'public', table: 'sales' }, () => loadData(false))
@@ -644,7 +644,7 @@
             }
         }
 
-        function localPackKey() { return 'crunch_lab_packing_orders_v1'; }
+        function localPackKey() { return 'pos_packing_orders_' + BRAND_NAME.toLowerCase().replace(/[^a-z0-9]/g, '_'); }
         function savePackingLocal() { localStorage.setItem(localPackKey(), JSON.stringify(packingOrders)); }
         function readPackingLocal() {
             try { return JSON.parse(localStorage.getItem(localPackKey()) || '[]'); }
@@ -669,7 +669,7 @@
 
         async function loadPackingOrders() {
             try {
-                const { data, error } = await db.from('packing_orders').select('*').order('created_at', { ascending: false });
+                const { data, error } = await db.from('packing_orders').select('*').eq('brand', BRAND_NAME).order('created_at', { ascending: false });
                 if (error) throw error;
                 packingOrders = (data || []).map(o => ({ ...o, items: normaliseItems(o.items) }));
                 showStatus('PACKING SYNCED');
@@ -682,17 +682,36 @@
         }
 
         async function savePackingOrder(order) {
+            order.brand = BRAND_NAME;
             packingOrders.unshift(order);
             savePackingLocal();
             renderPacking();
             try {
-                const { error } = await db.from('packing_orders').upsert(order);
+                // Only send columns that definitely exist in Supabase packing_orders.
+                // This prevents Supabase insert failure when receipt/discount fields exist in the POS object
+                // but the database table has not been altered for those columns.
+                const packingRow = {
+                    id: order.id,
+                    brand: BRAND_NAME,
+                    order_no: order.order_no || '',
+                    time: order.time || '',
+                    date: order.date || '',
+                    details: order.details || '',
+                    method: order.method || '',
+                    total: Number(order.total || 0),
+                    status: order.status || 'Pending',
+                    items: order.items || [],
+                    packed_at: order.packed_at || null,
+                    created_at: order.created_at || new Date().toISOString()
+                };
+                const { error } = await db.from('packing_orders').upsert(packingRow);
                 if (error) throw error;
                 showStatus('PACKING ORDER SENT');
                 await loadPackingOrders();
             } catch (err) {
-                console.warn('Packing order saved locally only:', err);
-                showStatus('PACKING SAVED LOCAL ONLY', true);
+                console.error('Packing Supabase save failed:', err);
+                showStatus('PACKING SUPABASE ERROR - CHECK CONSOLE', true);
+                alert('Packing not saved to Supabase: ' + (err.message || JSON.stringify(err)));
             }
         }
 
@@ -1340,6 +1359,7 @@
 
                 const packOrder = {
                     id: orderId,
+                    brand: BRAND_NAME,
                     order_no: orderNo,
                     time: newSale.time,
                     date: newSale.date,
